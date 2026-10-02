@@ -1,0 +1,19 @@
+# Virtual env & Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node & Next.js
+node_modules/
+.next/
+out/
+.vercel/
+
+# Sensitive Environment Files
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env.localbackend/.env
+.env

@@ -11,8 +11,8 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/data:/app/data
-      - ./backend/faiss_index:/app/faiss_index
-      - ./backend/faiss_query_cache:/app/faiss_query_cache
+      - ./backend/data/faiss_index:/app/faiss_index
+      - ./backend/data/faiss_query_cache:/app/faiss_query_cache
       - hf_cache:/app/cache/huggingface
     networks:
       - doc_ai_network

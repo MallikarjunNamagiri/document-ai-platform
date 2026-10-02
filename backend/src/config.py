@@ -10,8 +10,8 @@ load_dotenv(dotenv_path=ENV_FILE, override=True)
 
 # File and Directory Paths
 DATA_DIR = BASE_DIR / "data"
-FAISS_INDEX_DIR = BASE_DIR / "faiss_index"
-QUERY_CACHE_DIR = BASE_DIR / "faiss_query_cache"
+FAISS_INDEX_DIR = BASE_DIR / "data/faiss_index"
+QUERY_CACHE_DIR = BASE_DIR / "data/faiss_query_cache"
 QUERY_JSON_PATH = QUERY_CACHE_DIR / "query_payloads.json"
 
 # Ensure runtime directories exist
