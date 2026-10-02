@@ -17,3 +17,6 @@ out/
 backend/.env
 frontend/.env.localbackend/.env
 .env
+_brag-tmp/
+.cursor/
+.deepeval/
