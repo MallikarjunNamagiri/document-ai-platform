@@ -1,7 +1,33 @@
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/**
+ * Backend base URL. Set NEXT_PUBLIC_API_URL in Vercel (Project Settings -> Environment Variables)
+ * or in frontend/.env.local for local dev. It is inlined at build time, so redeploy after changing it.
+ * Read at call time (not module load) and normalised to have no trailing slash.
+ */
+function apiBase(): string {
+  return (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+}
 
-// vercel url config
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+/**
+ * Builds a human-readable message from a failed response. FastAPI sends {"detail": "..."};
+ * proxies/platforms (Vercel, Render) send plain text or HTML, which must not be swallowed.
+ */
+async function readError(response: Response, fallback: string): Promise<string> {
+  const raw = await response.text().catch(() => "");
+  try {
+    const detail = JSON.parse(raw)?.detail;
+    if (typeof detail === "string" && detail) return detail;
+  } catch {
+    // not JSON - fall through
+  }
+  if (response.status === 413) {
+    return "The file is too large for the server (HTTP 413).";
+  }
+  if (response.status === 404 && !apiBase()) {
+    return "API URL is not configured. Set NEXT_PUBLIC_API_URL in your Vercel project's Environment Variables and redeploy (HTTP 404).";
+  }
+  const body = raw.trim().slice(0, 200);
+  return body ? `${fallback} (HTTP ${response.status}): ${body}` : `${fallback} (HTTP ${response.status})`;
+}
 
 export interface SystemStatus {
   llm_provider: string;
@@ -37,7 +63,7 @@ export interface RagasMetrics {
  * Retrieves the live engine and runtime telemetry status
  */
 export async function fetchSystemStatus(): Promise<SystemStatus> {
-  const response = await fetch(`${API_BASE}/api/status`);
+  const response = await fetch(`${apiBase()}/api/status`);
   if (!response.ok) {
     throw new Error("Failed to fetch system status");
   }
@@ -48,7 +74,7 @@ export async function fetchSystemStatus(): Promise<SystemStatus> {
  * Fetches all available PDF documents in the backend data directory
  */
 export async function fetchAvailableDocuments(): Promise<DocumentListResponse> {
-  const response = await fetch(`${API_BASE}/api/documents`);
+  const response = await fetch(`${apiBase()}/api/documents`);
   if (!response.ok) {
     throw new Error("Failed to fetch available documents");
   }
@@ -59,14 +85,13 @@ export async function fetchAvailableDocuments(): Promise<DocumentListResponse> {
  * Selects and mounts an existing document from backend storage
  */
 export async function selectDocument(filename: string): Promise<DocumentActionResponse> {
-  const response = await fetch(`${API_BASE}/api/documents/select`, {
+  const response = await fetch(`${apiBase()}/api/documents/select`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ filename }),
   });
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Failed to select document");
+    throw new Error(await readError(response, "Failed to select document"));
   }
   return response.json();
 }
@@ -78,14 +103,13 @@ export async function uploadDocument(file: File): Promise<DocumentActionResponse
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE}/api/upload`, {
+  const response = await fetch(`${apiBase()}/api/upload`, {
     method: "POST",
     body: formData,
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || "Failed to upload document");
+    throw new Error(await readError(response, "Failed to upload document"));
   }
 
   return response.json();
@@ -101,7 +125,7 @@ export async function streamChatResponse(
   onToken: (token: string) => void,
   onComplete: (metadata: any) => void
 ) {
-  const response = await fetch(`${API_BASE}/api/chat/stream`, {
+  const response = await fetch(`${apiBase()}/api/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -112,8 +136,7 @@ export async function streamChatResponse(
   });
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail || "Error streaming response");
+    throw new Error(await readError(response, "Error streaming response"));
   }
 
   const reader = response.body?.getReader();
@@ -148,7 +171,7 @@ export async function evaluateTurn(
   answer: string,
   contexts: string[]
 ): Promise<RagasMetrics> {
-  const response = await fetch(`${API_BASE}/api/evaluate`, {
+  const response = await fetch(`${apiBase()}/api/evaluate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, answer, contexts }),

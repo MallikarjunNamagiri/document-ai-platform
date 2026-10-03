@@ -1,10 +1,6 @@
 import os
 import json
 import numpy as np
-import hashlib
-from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
-from src.config import QUERY_CACHE_DIR, QUERY_JSON_PATH, SEMANTIC_SIMILARITY_THRESHOLD
 from typing import Optional, Dict, Any, List
 from upstash_redis import Redis
 from src.core.models import get_embeddings
@@ -28,34 +24,6 @@ def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
         return 0.0
     return float(np.dot(a, b) / (norm_a * norm_b))
 
-
-def load_query_json() -> dict:
-    if QUERY_JSON_PATH.exists():
-        try:
-            with open(QUERY_JSON_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def save_query_json(data: dict):
-    with open(QUERY_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-def get_query_cache_vectorstore():
-    embeddings = get_embeddings()
-    index_file = QUERY_CACHE_DIR / "index.faiss"
-    pickle_file = QUERY_CACHE_DIR / "index.pkl"
-    if index_file.exists() and pickle_file.exists():
-        try:
-            return FAISS.load_local(
-                str(QUERY_CACHE_DIR),
-                embeddings,
-                allow_dangerous_deserialization=True,
-            )
-        except Exception:
-            return None
-    return None
 
 def check_semantic_cache(
     query: str, 

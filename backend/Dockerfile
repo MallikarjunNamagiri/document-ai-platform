@@ -1,36 +1,21 @@
-# Multi-stage / optimized build for Python backend
 FROM python:3.11-slim
 
-# Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HF_HOME=/app/cache/huggingface
+    FASTEMBED_CACHE_PATH=/app/cache/fastembed
 
 WORKDIR /app
 
-# Install system dependencies needed for compiling C-extensions & network utilities
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PyTorch CPU wheels first to avoid multi-gigabyte CUDA bloat
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Install Python requirements
+# Only the runtime dependencies (no PyTorch / RAGAS). See requirements-eval.txt for the optional extras.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download Sentence Transformer and Cross-Encoder models into the image layer
-RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncoder; \
-    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
-    CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
+# Bake the ONNX embedding model into the image so the first upload does not download it.
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
 
-# Copy application source code
 COPY . .
 
-# Expose FastAPI port
 EXPOSE 8000
 
-# Run Uvicorn pointing directly to src.main:app
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Render/Railway inject $PORT; fall back to 8000 for docker-compose/local use.
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

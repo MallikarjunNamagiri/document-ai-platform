@@ -36,13 +36,14 @@ def search_qdrant_with_doc_filter(query: str, doc_hash: str, top_k: int = 5) -> 
         must=[FieldCondition(key="doc_hash", match=MatchValue(value=doc_hash))]
     )
 
-    results = client.search(
+    # qdrant-client >= 1.16 removed .search(); query_points() is the supported API.
+    results = client.query_points(
         collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
+        query=query_vector,
         query_filter=search_filter,
         limit=top_k,
         with_payload=True
-    )
+    ).points
 
     docs = []
     for hit in results:

@@ -1,7 +1,13 @@
 import sys
 import types
 from typing import List, Dict, Any
-from datasets import Dataset
+
+from src.core.models import get_llm, get_embeddings
+
+
+class EvaluationUnavailable(RuntimeError):
+    """Raised when the optional evaluation libraries (ragas, datasets) are not installed."""
+
 
 def _install_vertexai_compat() -> None:
     """ragas 0.4.3 imports Vertex classes removed from langchain-community 0.4."""
@@ -37,12 +43,21 @@ def _install_vertexai_compat() -> None:
             sys.modules[llm_name] = llm_mod
 
 
-_install_vertexai_compat()
 
-from ragas import evaluate
-from ragas.metrics import faithfulness, ContextRelevance, answer_correctness
+def _load_ragas():
+    """Imports ragas/datasets on demand; they are optional and heavy (see requirements-eval.txt)."""
+    try:
+        _install_vertexai_compat()
+        from datasets import Dataset
+        from ragas import evaluate
+        from ragas.metrics import faithfulness, ContextRelevance, answer_correctness
+    except ImportError as exc:
+        raise EvaluationUnavailable(
+            "Evaluation needs the optional 'ragas' and 'datasets' packages "
+            "(pip install -r requirements-eval.txt)."
+        ) from exc
+    return Dataset, evaluate, faithfulness, ContextRelevance, answer_correctness
 
-from src.core.models import get_llm, get_embeddings
 
 def run_ragas_evaluation(
     question: str, 
@@ -56,6 +71,7 @@ def run_ragas_evaluation(
     - Context Relevancy (Noise reduction)
     - Answer Correctness (Factual accuracy against reference / self-consistency)
     """
+    Dataset, evaluate, faithfulness, ContextRelevance, answer_correctness = _load_ragas()
     try:
         # Prepare evaluation dataset
         data_dict = {

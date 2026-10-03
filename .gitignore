@@ -15,7 +15,8 @@ out/
 .env.local
 .env.*.local
 backend/.env
-frontend/.env.localbackend/.env
+frontend/.env.local
+backend/.env
 .env
 _brag-tmp/
 .cursor/

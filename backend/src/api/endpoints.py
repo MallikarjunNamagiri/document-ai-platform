@@ -1,5 +1,6 @@
 import json
 import asyncio
+import logging
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -9,13 +10,14 @@ from src.api.schemas import QueryRequest
 from src.core.models import get_llm
 from src.core.cache import check_semantic_cache, store_semantic_cache, get_cached_queries_count
 from src.services.router import is_greeting_query, contextualize_question
-from src.services.evaluator import run_ragas_evaluation
+from src.services.evaluator import run_ragas_evaluation, EvaluationUnavailable
 from src.services.ingestion import process_pdf_in_memory, index_chunks_to_qdrant
 from src.services.qdrant_ops import get_registered_documents_from_qdrant, search_qdrant_with_doc_filter
-from src.config import GROQ_MODEL, GUARDRAIL_CONFIDENCE_THRESHOLD, SEMANTIC_SIMILARITY_THRESHOLD
+from src.config import MAX_UPLOAD_BYTES, GROQ_MODEL, GUARDRAIL_CONFIDENCE_THRESHOLD, SEMANTIC_SIMILARITY_THRESHOLD
 from langchain_core.prompts import ChatPromptTemplate
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 class SelectDocRequest(BaseModel):
     filename: Optional[str] = None
@@ -41,12 +43,37 @@ async def list_documents():
 # 2. In-Memory Upload -> Qdrant Metadata Layer
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
-    if not file.filename.endswith(".pdf"):
+    if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF documents are supported.")
 
     file_bytes = await file.read()
-    chunks, doc_hash = process_pdf_in_memory(file_bytes, file.filename)
-    indexed_count = index_chunks_to_qdrant(chunks, doc_hash, file.filename)
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        limit_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"File is too large (limit {limit_mb} MB).")
+
+    try:
+        chunks, doc_hash = process_pdf_in_memory(file_bytes, file.filename)
+    except Exception:
+        logger.exception("PDF parsing failed for %s", file.filename)
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read this PDF. It may be corrupted or password-protected.",
+        )
+
+    if not chunks:
+        raise HTTPException(
+            status_code=422,
+            detail="No extractable text found. Scanned or image-only PDFs are not supported.",
+        )
+
+    try:
+        indexed_count = index_chunks_to_qdrant(chunks, doc_hash, file.filename)
+    except Exception:
+        logger.exception("Indexing failed for %s", file.filename)
+        raise HTTPException(
+            status_code=502,
+            detail="Vector database is unavailable. Please try again shortly.",
+        )
 
     return {
         "name": file.filename,
@@ -137,9 +164,12 @@ async def get_system_status():
 @router.post("/evaluate")
 async def evaluate_rag_turn(payload: EvalRequest):
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
-        None, run_ragas_evaluation, payload.question, payload.answer, payload.contexts, payload.ground_truth
-    )
+    try:
+        return await loop.run_in_executor(
+            None, run_ragas_evaluation, payload.question, payload.answer, payload.contexts, payload.ground_truth
+        )
+    except EvaluationUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 @router.post("/documents/select")
 async def select_document(payload: SelectDocRequest):

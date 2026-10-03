@@ -1,0 +1,4 @@
+# Optional: only needed for the /api/evaluate (RAGAS) endpoint. Heavy, so kept out of the deploy image.
+-r requirements.txt
+ragas>=0.2.0
+datasets>=2.0.0
