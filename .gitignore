@@ -20,3 +20,8 @@ frontend/.env.localbackend/.env
 _brag-tmp/
 .cursor/
 .deepeval/
+
+# Python core folders from the project
+__pycache__/
+faiss_index/
+faiss_index_data/

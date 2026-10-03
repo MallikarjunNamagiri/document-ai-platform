@@ -18,8 +18,10 @@ from langchain_core.prompts import ChatPromptTemplate
 router = APIRouter()
 
 class SelectDocRequest(BaseModel):
-    doc_hash: str
-    doc_name: str
+    filename: Optional[str] = None
+    doc_hash: Optional[str] = None
+    doc_name: Optional[str] = None
+
 
 class EvalRequest(BaseModel):
     question: str
@@ -31,7 +33,10 @@ class EvalRequest(BaseModel):
 @router.get("/documents")
 async def list_documents():
     docs = get_registered_documents_from_qdrant()
-    return {"files": [d["name"] for d in docs], "documents": docs}
+    return {
+        "files": [d["name"] for d in docs],
+        "documents": docs
+    }
 
 # 2. In-Memory Upload -> Qdrant Metadata Layer
 @router.post("/upload")
@@ -121,11 +126,11 @@ async def get_system_status():
         "llm_provider": "Groq",
         "llm_connected": True,
         "model": GROQ_MODEL,
-        "vector_db": "Qdrant Cloud (Payload Layer)",
+        "vector_db": "Qdrant Cloud",
         "vector_status": "Ready",
-        "retrieval": "Filtered Vector + Metadata Payload",
+        "retrieval": "Hybrid + Guardrail",
         "guardrail": f"Cutoff ({GUARDRAIL_CONFIDENCE_THRESHOLD})",
-        "semantic_cache_count": f"{cached_count} cached (Upstash)",
+        "semantic_cache_count": f"{cached_count} cached",
         "match_threshold": f"{int(SEMANTIC_SIMILARITY_THRESHOLD * 100)}%"
     }
 
@@ -135,3 +140,25 @@ async def evaluate_rag_turn(payload: EvalRequest):
     return await loop.run_in_executor(
         None, run_ragas_evaluation, payload.question, payload.answer, payload.contexts, payload.ground_truth
     )
+
+@router.post("/documents/select")
+async def select_document(payload: SelectDocRequest):
+    # Support lookup either by filename or doc_hash
+    target = payload.filename or payload.doc_name
+    registered = get_registered_documents_from_qdrant()
+    
+    matched = next((d for d in registered if d["name"] == target or d["hash"] == payload.doc_hash), None)
+    
+    if not matched:
+        # If no previous vectors are found, still return clean metadata for frontend state
+        return {
+            "name": target or "Document",
+            "hash": payload.doc_hash or "unindexed",
+            "chunks": 0
+        }
+        
+    return {
+        "name": matched["name"],
+        "hash": matched["hash"],
+        "chunks": matched.get("chunks", 1)
+    }

@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  // API_BASE,
+  
   streamChatResponse,
   uploadDocument,
   fetchAvailableDocuments,
@@ -13,7 +15,7 @@ import {
   RagasMetrics,
 } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface DocInfo {
   name: string;
@@ -56,7 +58,7 @@ export default function DocumentAIChat() {
       setAvailableDocs(docsData.files || []);
       setStatus(statusData);
     } catch {
-      // Backend polling
+      // Backend polling failure fallback
     }
   };
 
@@ -136,7 +138,7 @@ export default function DocumentAIChat() {
     index: number,
     question: string,
     answer: string,
-    contexts: string[],
+    contexts: string[]
   ) => {
     setMessages((prev) => {
       const updated = [...prev];
@@ -208,22 +210,20 @@ export default function DocumentAIChat() {
           setLoading(false);
           refreshTelemetry();
 
-          // Auto-trigger Ragas evaluation if sources/contexts exist and not from cache
           if (!meta.cached && meta.contexts?.length > 0) {
             runEvaluationForTurn(
               currentAssistantIdx,
               queryText,
               assistantText,
-              meta.contexts,
+              meta.contexts
             );
           }
-        },
+        }
       );
     } catch (err: any) {
       setMessages((prev) => {
         const next = [...prev];
-        next[next.length - 1].content =
-          `⚠️ ${err.message || "Request failed."}`;
+        next[next.length - 1].content = `⚠️ ${err.message || "Request failed."}`;
         return next;
       });
       setLoading(false);
@@ -232,8 +232,7 @@ export default function DocumentAIChat() {
 
   const extractFollowUps = (text: string) => {
     const followUpMarker = "**Suggested Follow-ups:**";
-    if (!text.includes(followUpMarker))
-      return { mainText: text, followUps: [] };
+    if (!text.includes(followUpMarker)) return { mainText: text, followUps: [] };
 
     const [mainText, followUpBlock] = text.split(followUpMarker);
     const followUps = followUpBlock
@@ -245,19 +244,14 @@ export default function DocumentAIChat() {
   };
 
   return (
-    <div
-      className="flex h-screen bg-[#080a0e] text-white"
-      suppressHydrationWarning
-    >
+    <div className="flex h-screen bg-[#080a0e] text-white" suppressHydrationWarning>
       {/* Sidebar */}
       <aside className="w-80 border-r border-white/10 p-5 flex flex-col justify-between overflow-y-auto">
         <div>
           {/* Header */}
           <div className="flex items-center gap-3 pb-4 border-b border-white/10">
             <span className="text-amber-400 text-2xl font-bold">✦</span>
-            <span className="font-semibold tracking-wide text-lg">
-              Document AI
-            </span>
+            <span className="font-semibold tracking-wide text-lg">Document AI</span>
           </div>
 
           {/* ENGINE & STATUS CARD */}
@@ -273,19 +267,19 @@ export default function DocumentAIChat() {
                     {status?.llm_provider || "Groq"}
                   </span>
                   <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{" "}
-                    Connected
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
                   </span>
                 </div>
               </div>
 
+              {/* Dynamic Model Display */}
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">Model</span>
                 <span
-                  className="font-mono text-[11px] text-gray-200 truncate max-w-[140px]"
-                  title={status?.model}
+                  className="font-mono text-[11px] text-amber-400/90 truncate max-w-[140px]"
+                  title={status?.model || "llama-3.3-70b-versatile"}
                 >
-                  {status?.model || "openai/gpt-oss-20b"}
+                  {status?.model || "llama-3.3-70b-versatile"}
                 </span>
               </div>
 
@@ -293,7 +287,7 @@ export default function DocumentAIChat() {
                 <span className="text-gray-400">Doc Vector DB</span>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-200">
-                    {status?.vector_db || "FAISS"}
+                    {status?.vector_db || "Qdrant Cloud"}
                   </span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1 ${
@@ -303,7 +297,9 @@ export default function DocumentAIChat() {
                     }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${currentDoc ? "bg-emerald-400" : "bg-gray-400"}`}
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        currentDoc ? "bg-emerald-400" : "bg-gray-400"
+                      }`}
                     ></span>
                     {currentDoc ? "Ready" : "Waiting File"}
                   </span>
@@ -320,14 +316,14 @@ export default function DocumentAIChat() {
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">Retrieval</span>
                 <span className="font-semibold text-gray-200">
-                  {status?.retrieval || "Hybrid + Router"}
+                  {status?.retrieval || "Hybrid + Guardrail"}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">Guardrail</span>
                 <span className="font-mono text-gray-200">
-                  {status?.guardrail || "Cutoff (-2.5)"}
+                  {status?.guardrail || "Cutoff (0.45)"}
                 </span>
               </div>
 
@@ -380,7 +376,7 @@ export default function DocumentAIChat() {
           {availableDocs.length > 0 && (
             <div className="mt-4">
               <label className="text-[11px] uppercase font-bold text-gray-400 tracking-wider block mb-1.5">
-                Available in Backend Data
+                Available Documents
               </label>
               <select
                 disabled={isProcessing}
@@ -389,7 +385,7 @@ export default function DocumentAIChat() {
                 className="w-full bg-[#11151b] border border-white/15 text-xs text-gray-200 rounded-lg p-2.5 outline-none focus:border-amber-400/50"
               >
                 <option value="" disabled>
-                  Select existing PDF...
+                  Select loaded PDF...
                 </option>
                 {availableDocs.map((doc, idx) => (
                   <option key={idx} value={doc}>
@@ -420,7 +416,7 @@ export default function DocumentAIChat() {
             >
               {isProcessing ? (
                 <>
-                  <span className="animate-spin text-sm">⟳</span> Processing...
+                  <span className="animate-spin text-sm">⟳</span> Ingesting...
                 </>
               ) : (
                 <>
@@ -642,31 +638,23 @@ export default function DocumentAIChat() {
                     </div>
                   )}
 
-                  {/* Clickable Citations */}
+                  {/* Sources & Citations */}
                   {m.sources && m.sources.length > 0 && (
                     <div className="mt-3.5 pt-2.5 border-t border-white/10 text-xs text-gray-400 flex flex-wrap items-center gap-1.5">
                       <span className="font-semibold text-gray-300 mr-1">
                         Sources:
                       </span>
-                      {m.sources.map((s: any, sIdx: number) => {
-                        const fileUrl = `${API_BASE}/files/${encodeURIComponent(s.source)}#page=${s.page}`;
-                        return (
-                          <a
-                            key={sIdx}
-                            href={fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-white/5 hover:bg-amber-400/10 border border-white/10 hover:border-amber-400/40 text-gray-300 hover:text-amber-300 px-2 py-0.5 rounded text-[11px] transition inline-flex items-center gap-1"
-                            title={`Open ${s.source} at page ${s.page}`}
-                          >
-                            <span>📄 {s.source}</span>
-                            <span className="text-amber-400 font-mono">
-                              (p.{s.page})
-                            </span>
-                            <span className="text-[9px] opacity-60">↗</span>
-                          </a>
-                        );
-                      })}
+                      {m.sources.map((s: any, sIdx: number) => (
+                        <span
+                          key={sIdx}
+                          className="bg-white/5 border border-white/10 text-gray-300 px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1 font-mono"
+                        >
+                          <span>📄 {s.source}</span>
+                          <span className="text-amber-400 font-bold">
+                            (p.{s.page})
+                          </span>
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
