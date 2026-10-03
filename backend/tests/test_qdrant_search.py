@@ -7,6 +7,9 @@ class FakeClient:
     def __init__(self):
         self.kwargs = None
 
+    def create_payload_index(self, **kwargs):
+        pass
+
     def query_points(self, **kwargs):
         self.kwargs = kwargs
         hit = SimpleNamespace(

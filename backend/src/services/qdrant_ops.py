@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from langchain_core.documents import Document
-from src.services.ingestion import get_qdrant_client, COLLECTION_NAME
+from src.services.ingestion import get_qdrant_client, ensure_payload_index, COLLECTION_NAME
 from src.core.models import get_embeddings
 
 def get_registered_documents_from_qdrant() -> List[Dict[str, Any]]:
@@ -31,6 +31,7 @@ def search_qdrant_with_doc_filter(query: str, doc_hash: str, top_k: int = 5) -> 
     client = get_qdrant_client()
     embeddings = get_embeddings()
     query_vector = embeddings.embed_query(query)
+    ensure_payload_index(client)  # also fixes documents uploaded before the index existed
 
     search_filter = Filter(
         must=[FieldCondition(key="doc_hash", match=MatchValue(value=doc_hash))]

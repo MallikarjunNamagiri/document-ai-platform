@@ -11,7 +11,7 @@ from src.core.models import get_llm
 from src.core.cache import check_semantic_cache, store_semantic_cache, get_cached_queries_count
 from src.services.router import is_greeting_query, contextualize_question
 from src.services.evaluator import run_ragas_evaluation, EvaluationUnavailable
-from src.services.ingestion import process_pdf_in_memory, index_chunks_to_qdrant
+from src.services.ingestion import process_pdf_in_memory, index_chunks_to_qdrant, QdrantNotConfigured
 from src.services.qdrant_ops import get_registered_documents_from_qdrant, search_qdrant_with_doc_filter
 from src.config import MAX_UPLOAD_BYTES, GROQ_MODEL, GUARDRAIL_CONFIDENCE_THRESHOLD, SEMANTIC_SIMILARITY_THRESHOLD
 from langchain_core.prompts import ChatPromptTemplate
@@ -68,6 +68,8 @@ async def upload_document(file: UploadFile = File(...)):
 
     try:
         indexed_count = index_chunks_to_qdrant(chunks, doc_hash, file.filename)
+    except QdrantNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=f"Vector database is not configured. {exc}")
     except Exception:
         logger.exception("Indexing failed for %s", file.filename)
         raise HTTPException(
@@ -99,6 +101,8 @@ async def chat_stream(payload: QueryRequest):
         raise HTTPException(status_code=400, detail="No active document selected. Please select or upload a document.")
 
     llm = get_llm()
+    if llm is None:
+        raise HTTPException(status_code=503, detail="LLM is not configured. Set GROQ_API_KEY in the backend environment.")
     search_query = contextualize_question(question, payload.chat_history, llm)
 
     # Check Upstash Semantic Cache
@@ -111,7 +115,13 @@ async def chat_stream(payload: QueryRequest):
         return StreamingResponse(cache_generator(), media_type="text/event-stream")
 
     # Fetch relevant chunks directly from Qdrant metadata
-    docs = search_qdrant_with_doc_filter(search_query, doc_hash, top_k=4)
+    try:
+        docs = search_qdrant_with_doc_filter(search_query, doc_hash, top_k=4)
+    except QdrantNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=f"Vector database is not configured. {exc}")
+    except Exception:
+        logger.exception("Document search failed")
+        raise HTTPException(status_code=502, detail="Document search failed. Please try again shortly.")
 
     if not docs:
         async def empty_generator():

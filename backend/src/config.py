@@ -1,6 +1,19 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def load_env_file(path: Path) -> None:
+    """Load KEY=VALUE pairs from a local .env file for development.
+    Never overrides variables already set (hosting dashboards win) and is a no-op if the file is absent."""
+    load_dotenv(path, override=False)
+
+
+load_env_file(BACKEND_DIR / ".env")
+
 if os.getenv("VERCEL"):
     DATA_DIR = Path("/tmp/data")
 else:
