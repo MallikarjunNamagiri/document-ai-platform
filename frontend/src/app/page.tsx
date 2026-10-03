@@ -285,7 +285,7 @@ export default function DocumentAIChat() {
                   className="font-mono text-[11px] text-gray-200 truncate max-w-[140px]"
                   title={status?.model}
                 >
-                  {status?.model || "llama-3.3-70b"}
+                  {status?.model || "openai/gpt-oss-20b"}
                 </span>
               </div>
 

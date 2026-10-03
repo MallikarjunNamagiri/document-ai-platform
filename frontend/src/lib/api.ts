@@ -1,4 +1,7 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// vercel url config
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export interface SystemStatus {
   llm_provider: string;
