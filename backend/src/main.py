@@ -12,7 +12,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix="")
+# app.include_router(api_router, prefix="")
+app.include_router(api_router, prefix="/api")
+app.include_router(api_router)
 
 @app.get("/health")
 def health_check():

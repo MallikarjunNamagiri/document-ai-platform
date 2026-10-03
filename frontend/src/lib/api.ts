@@ -1,7 +1,7 @@
 // const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // vercel url config
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://document-ai-platform.vercel.app/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 export interface SystemStatus {
   llm_provider: string;
