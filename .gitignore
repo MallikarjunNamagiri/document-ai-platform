@@ -26,3 +26,6 @@ _brag-tmp/
 __pycache__/
 faiss_index/
 faiss_index_data/
+
+# other
+brag-output/
