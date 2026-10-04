@@ -52,10 +52,11 @@ export interface DocumentActionResponse {
   chunks: number;
 }
 
+/** A score is null when it could not be computed (e.g. the judge LLM failed, or no reference answer was given). */
 export interface RagasMetrics {
-  faithfulness: number;
-  context_relevancy: number;
-  answer_correctness: number;
+  faithfulness: number | null;
+  context_relevancy: number | null;
+  answer_correctness: number | null;
   status: string;
 }
 

@@ -22,6 +22,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+# RAGAS judge calls need room to finish: reasoning models spend completion tokens thinking.
+EVAL_MAX_TOKENS = int(os.getenv("EVAL_MAX_TOKENS", "4096"))
 
 QDRANT_URL = os.getenv("QDRANT_URL", "")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")

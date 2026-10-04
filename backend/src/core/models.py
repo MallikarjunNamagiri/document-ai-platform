@@ -3,7 +3,7 @@ from typing import List
 
 from langchain_groq import ChatGroq
 
-from src.config import GROQ_API_KEY, GROQ_MODEL, EMBEDDING_MODEL, RERANKER_MODEL
+from src.config import GROQ_API_KEY, GROQ_MODEL, EMBEDDING_MODEL, RERANKER_MODEL, EVAL_MAX_TOKENS
 
 
 class FastEmbedEmbeddings:
@@ -46,4 +46,17 @@ def get_llm():
         model=GROQ_MODEL,
         temperature=0,
         streaming=True,
+    )
+
+
+@lru_cache(maxsize=1)
+def get_eval_llm():
+    """LLM used as the RAGAS judge: non-streaming, with a large completion budget."""
+    if not GROQ_API_KEY:
+        return None
+    return ChatGroq(
+        api_key=GROQ_API_KEY,
+        model=GROQ_MODEL,
+        temperature=0,
+        max_tokens=EVAL_MAX_TOKENS,
     )

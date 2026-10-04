@@ -14,6 +14,7 @@ import {
   SystemStatus,
   RagasMetrics,
 } from "@/lib/api";
+import { formatMetric } from "@/lib/format";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -576,7 +577,7 @@ export default function DocumentAIChat() {
                                 Faithfulness
                               </div>
                               <div className="text-sm font-mono font-bold text-emerald-400 mt-0.5">
-                                {(m.evalMetrics.faithfulness * 100).toFixed(0)}%
+                                {formatMetric(m.evalMetrics.faithfulness)}
                               </div>
                               <div className="text-[9px] text-gray-500">
                                 Groundedness
@@ -588,10 +589,7 @@ export default function DocumentAIChat() {
                                 Context Relevancy
                               </div>
                               <div className="text-sm font-mono font-bold text-sky-400 mt-0.5">
-                                {(
-                                  m.evalMetrics.context_relevancy * 100
-                                ).toFixed(0)}
-                                %
+                                {formatMetric(m.evalMetrics.context_relevancy)}
                               </div>
                               <div className="text-[9px] text-gray-500">
                                 Retriever Signal
@@ -603,10 +601,7 @@ export default function DocumentAIChat() {
                                 Answer Correctness
                               </div>
                               <div className="text-sm font-mono font-bold text-amber-400 mt-0.5">
-                                {(
-                                  m.evalMetrics.answer_correctness * 100
-                                ).toFixed(0)}
-                                %
+                                {formatMetric(m.evalMetrics.answer_correctness)}
                               </div>
                               <div className="text-[9px] text-gray-500">
                                 Semantic Alignment
